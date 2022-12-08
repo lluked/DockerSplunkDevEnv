@@ -1,0 +1,2 @@
+ansible_facts-*.json
+inventory.yml

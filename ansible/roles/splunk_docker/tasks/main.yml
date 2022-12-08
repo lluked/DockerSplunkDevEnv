@@ -1,0 +1,79 @@
+---
+
+- name: Include splunk variables
+  ansible.builtin.include_vars:
+    file: ../SplunkResources/splunk.json
+    name: splunk
+
+- name: Debug
+  ansible.builtin.debug:
+    msg: "{{ debug_item }}"
+  with_items:
+    - "{{ splunk.SPLUNK }}"
+    - "{{ splunk.SPLUNK_APPS|dict2items }}"
+    - "{{ splunk.REPO_APPS|dict2items }}"
+    - "{{ splunk.CUSTOM_APPS|dict2items }}"
+  loop_control:
+    loop_var: debug_item
+
+- name: Install python packages for community.docker.docker_compose
+  become: true
+  ansible.builtin.pip:
+    name:
+      - requests
+      - docker
+      - docker-compose
+
+- name: Stop services
+  community.docker.docker_compose:
+    project_src: "{{ PROJECT_DIR }}"
+    stopped: true
+  ignore_errors: true
+
+- name: Remove SplunkDocker folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ PROJECT_DIR }}"
+    state: absent
+
+- name: Copy SplunkDocker folder
+  ansible.builtin.copy:
+    src: SplunkDocker
+    dest: ~/
+
+- name: Start services to create apps directory with conf files
+  community.docker.docker_compose:
+    project_src: "{{ PROJECT_DIR }}"
+
+- name: Stop services
+  community.docker.docker_compose:
+    project_src: "{{ PROJECT_DIR }}"
+    stopped: true
+
+- name: Install splunk apps
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ SPLUNK_RESOURCES_DIR }}/{{ item.value.src }}"
+    dest: "{{ SPLUNK_APPS_DIR }}"
+  with_items:
+    - "{{ splunk.SPLUNK_APPS|dict2items }}"
+
+- name: Install repo apps
+  become: true
+  ansible.builtin.git:
+    repo: "{{ item.value.repo }}"
+    dest: "{{ SPLUNK_APPS_DIR }}/{{ item.key }}"
+  with_items:
+    - "{{ splunk.REPO_APPS|dict2items }}"
+
+- name: Install custom apps
+  become: true
+  ansible.builtin.copy:
+    src: "{{ SPLUNK_RESOURCES_DIR }}/{{ item.value.src }}"
+    dest: "{{ SPLUNK_APPS_DIR }}"
+  with_items:
+    - "{{ splunk.CUSTOM_APPS|dict2items }}"
+
+- name: Start services
+  community.docker.docker_compose:
+    project_src: "{{ PROJECT_DIR }}"
