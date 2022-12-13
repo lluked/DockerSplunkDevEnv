@@ -36,10 +36,13 @@
     path: "{{ PROJECT_DIR }}"
     state: absent
 
-- name: Copy SplunkDocker folder
+- name: Copy docker-compose
   ansible.builtin.copy:
-    src: SplunkDocker
-    dest: ~/
+    src: "{{ item }}"
+    dest: "{{ PROJECT_DIR }}/"
+  with_items:
+    - docker-compose.yml
+    - .env
 
 - name: Start services to create apps directory with conf files
   community.docker.docker_compose:
@@ -77,3 +80,4 @@
 - name: Start services
   community.docker.docker_compose:
     project_src: "{{ PROJECT_DIR }}"
+    restarted: true

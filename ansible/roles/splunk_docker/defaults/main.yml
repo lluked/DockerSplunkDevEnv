@@ -1,3 +1,3 @@
 PROJECT_DIR: "{{ ansible_env.HOME }}/SplunkDocker"
-SPLUNK_APPS_DIR: "{{ ansible_env.HOME }}/SplunkDocker/apps"
+SPLUNK_APPS_DIR: "{{ PROJECT_DIR }}/apps"
 SPLUNK_RESOURCES_DIR: ../SplunkResources
