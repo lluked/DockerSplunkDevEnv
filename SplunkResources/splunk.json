@@ -1,9 +1,4 @@
 {
-  "SPLUNK": {
-    "url": "https://download.splunk.com/products/splunk/releases/9.0.1/linux/splunk-9.0.1-82c987350fde-Linux-x86_64.tgz",
-    "version": "9.0.1",
-    "src": "splunk-9.0.1-82c987350fde-Linux-x86_64.tgz"
-  },
   "SPLUNK_APPS": {
     "Splunk_SA_CIM": {
       "splunkbase": "https://splunkbase.splunk.com/app/1621/",
@@ -104,12 +99,6 @@
       "splunkbase": "https://splunkbase.splunk.com/app/5709/",
       "version": "3.0.0",
       "src": "apps/splunkbase/splunk-add-on-for-sysmon_300.tgz"
-    }
-  },
-  "REPO_APPS": {
-    "SA-cim_validator": {
-      "repo": "https://github.com/hire-vladimir/SA-cim_vladiator.git",
-      "version": "1.8.0"
     }
   },
   "CUSTOM_APPS": {

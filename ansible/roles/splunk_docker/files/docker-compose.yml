@@ -12,8 +12,10 @@ services:
     environment:
       - SPLUNK_START_ARGS=--accept-license
       - SPLUNK_PASSWORD=${SPLUNK_PASSWORD}
+      - ANSIBLE_EXTRA_FLAGS=-vvvv
     volumes:
-      - './apps:/opt/splunk/etc/apps'
+      - ./default.yml:/tmp/defaults/default.yml
+      - ./app_packages:/tmp/app_packages
     networks:
       splunknet:
         aliases:

@@ -1,0 +1,8 @@
+---
+
+splunk:
+  role: splunk_standalone
+  apps_location:
+  {% for splunk_app in splunk_apps_list|sort %}
+  - /tmp/app_packages/{{ splunk_app }}
+  {% endfor %}

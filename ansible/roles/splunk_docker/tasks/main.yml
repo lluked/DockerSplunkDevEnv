@@ -1,5 +1,13 @@
 ---
 
+- name: Install python packages for community.docker.docker_compose
+  become: true
+  ansible.builtin.pip:
+    name:
+      - requests
+      - docker
+      - docker-compose
+
 - name: Include splunk variables
   ansible.builtin.include_vars:
     file: ../SplunkResources/splunk.json
@@ -9,20 +17,10 @@
   ansible.builtin.debug:
     msg: "{{ debug_item }}"
   with_items:
-    - "{{ splunk.SPLUNK }}"
     - "{{ splunk.SPLUNK_APPS|dict2items }}"
-    - "{{ splunk.REPO_APPS|dict2items }}"
     - "{{ splunk.CUSTOM_APPS|dict2items }}"
   loop_control:
     loop_var: debug_item
-
-- name: Install python packages for community.docker.docker_compose
-  become: true
-  ansible.builtin.pip:
-    name:
-      - requests
-      - docker
-      - docker-compose
 
 - name: Stop services
   community.docker.docker_compose:
@@ -36,7 +34,7 @@
     path: "{{ PROJECT_DIR }}"
     state: absent
 
-- name: Copy docker-compose
+- name: Copy files
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ PROJECT_DIR }}/"
@@ -44,38 +42,73 @@
     - docker-compose.yml
     - .env
 
-- name: Start services to create apps directory with conf files
-  community.docker.docker_compose:
-    project_src: "{{ PROJECT_DIR }}"
-
-- name: Stop services
-  community.docker.docker_compose:
-    project_src: "{{ PROJECT_DIR }}"
-    stopped: true
-
-- name: Install splunk apps
-  become: true
-  ansible.builtin.unarchive:
+- name: Copy splunk apps
+  ansible.builtin.copy:
     src: "{{ SPLUNK_RESOURCES_DIR }}/{{ item.value.src }}"
-    dest: "{{ SPLUNK_APPS_DIR }}"
+    dest: "{{ APP_PACKAGES_DIR }}/"
   with_items:
     - "{{ splunk.SPLUNK_APPS|dict2items }}"
 
-- name: Install repo apps
-  become: true
-  ansible.builtin.git:
-    repo: "{{ item.value.repo }}"
-    dest: "{{ SPLUNK_APPS_DIR }}/{{ item.key }}"
-  with_items:
-    - "{{ splunk.REPO_APPS|dict2items }}"
+- name: Build apps
+  block:
+  - name: Copy custom apps
+    ansible.builtin.copy:
+      src: "{{ SPLUNK_RESOURCES_DIR }}/{{ item.value.src }}"
+      dest: "{{ APP_PACKAGES_DIR }}/"
+    with_items:
+      - "{{ splunk.CUSTOM_APPS|dict2items }}"
 
-- name: Install custom apps
-  become: true
-  ansible.builtin.copy:
-    src: "{{ SPLUNK_RESOURCES_DIR }}/{{ item.value.src }}"
-    dest: "{{ SPLUNK_APPS_DIR }}"
-  with_items:
-    - "{{ splunk.CUSTOM_APPS|dict2items }}"
+  - name: Archive custom apps
+    ansible.builtin.archive:
+      path: "{{ APP_PACKAGES_DIR }}/{{ item.value.src|basename }}"
+      dest: "{{ APP_PACKAGES_DIR }}/{{ item.value.src|basename }}.tgz"
+    with_items:
+      - "{{ splunk.CUSTOM_APPS|dict2items }}"
+
+  - name: Cleanup
+    block:
+    - name: Find directories
+      ansible.builtin.find:
+        paths: "{{ APP_PACKAGES_DIR }}"
+        file_type: directory
+      register: app_directories
+
+    - name: Delete directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items:
+          - "{{ app_directories.files }}"
+
+- name: Compose a list of apps to be populated in default.yml
+  block:
+  - name: Find apps
+    block:
+    - name: Find directories
+      ansible.builtin.find:
+        paths: "{{ APP_PACKAGES_DIR }}"
+        file_type: file
+        patterns: '*.tgz'
+      register: splunk_apps
+
+  - name: Create list
+    ansible.builtin.set_fact: 
+      splunk_apps_list: []
+
+  - name: Populate list
+    ansible.builtin.set_fact: 
+      splunk_apps_list: "{{ splunk_apps_list + [ item.path|basename ] }}"
+    with_items:
+      - "{{ splunk_apps.files }}"
+
+  - name: Sort list
+    ansible.builtin.set_fact: 
+      splunk_apps_list: "{{ splunk_apps_list | sort }}"
+
+- name: Template default.yml
+  ansible.builtin.template:
+    src: default.yml.j2
+    dest: "{{ PROJECT_DIR }}/default.yml"
 
 - name: Start services
   community.docker.docker_compose:
